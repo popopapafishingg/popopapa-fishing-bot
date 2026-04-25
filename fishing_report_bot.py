@@ -9,8 +9,11 @@ def clean_env(name):
         v = v.split("=", 1)[1]
     return v
 
-LINE_TOKEN = clean_env("LINE_ACCESS_TOKEN")
+LINE_TOKEN = clean_env("POPO_LINE_TOKEN")
 USER_ID = clean_env("USER_ID")
+
+print("POPO_LINE_TOKEN length:", len(LINE_TOKEN))
+print("USER_ID length:", len(USER_ID))
 
 print("TOKEN length:", len(LINE_TOKEN))
 print("USER_ID:", USER_ID)
