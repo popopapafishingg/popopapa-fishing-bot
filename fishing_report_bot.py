@@ -11,43 +11,38 @@ URLS = [
     "https://fishingmax.co.jp/fishingpost/",
 ]
 
-TARGET_FISH = [
-    "ブリ", "メジロ", "ハマチ", "ツバス",
-    "サワラ", "サゴシ",
-    "アジ", "ヒラメ", "マゴチ", "ヒラスズキ", "アオリイカ"
-]
-
 def fetch_page(url):
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
         r = requests.get(url, headers=headers, timeout=20)
         r.raise_for_status()
         return r.text
-    except:
+    except Exception as e:
+        print("FETCH ERROR:", e)
         return ""
 
 def extract_hits():
     hits = []
 
-    soup = BeautifulSoup(fetch_page(URLS[0]), "html.parser")
+    html = fetch_page(URLS[0])
+    soup = BeautifulSoup(html, "html.parser")
     text = soup.get_text("\n")
 
     lines = [line.strip() for line in text.splitlines() if line.strip()]
 
     for line in lines:
+        if len(line) < 5 or len(line) > 180:
+            continue
 
-        # 🔥 ナブラ系は無条件採用
         if any(word in line for word in ["ナブラ", "なぶら", "入れ食い"]):
             hits.insert(0, line)
             continue
 
-        # 青物だけ拾う
-        if any(fish in line for fish in ["メジロ", "ブリ", "ハマチ", "ツバス", "サゴシ", "サワラ"]):
-            if "釣れ" in line or "ヒット" in line:
+        if any(word in line for word in ["メジロ", "ブリ", "ハマチ", "ツバス", "サゴシ", "サワラ"]):
+            if any(word in line for word in ["釣れ", "釣果", "ヒット", "キャッチ", "本", "匹"]):
                 hits.insert(0, line)
                 continue
 
-    # 重複削除
     clean = []
     for h in hits:
         if h not in clean:
@@ -59,7 +54,7 @@ def judge_report(hits):
     now = datetime.now().strftime("%m/%d %H:%M")
 
     if not hits:
-        return f"""【ポポパパ釣果AI】
+        return f"""【新版テスト】ポポパパ釣果AI
 更新：{now}
 
 青物気配：なし
@@ -75,7 +70,6 @@ def judge_report(hits):
     nabl_flag = False
 
     for h in hits:
-
         if any(word in h for word in ["サゴシ", "サワラ"]):
             score += 40
             blue_flag = True
@@ -93,8 +87,7 @@ def judge_report(hits):
             score += 30
             blue_flag = True
 
-    if score > 100:
-        score = 100
+    score = min(score, 100)
 
     if score >= 80:
         mode = "爆釣🔥"
@@ -106,7 +99,7 @@ def judge_report(hits):
         mode = "渋い"
         conclusion = "様子見"
 
-    return f"""【ポポパパ釣果AI】
+    return f"""【新版テスト】ポポパパ釣果AI
 更新：{now}
 
 モード：{mode}
@@ -132,7 +125,8 @@ def send_line(text):
         "messages": [{"type": "text", "text": text[:4500]}],
     }
 
-    requests.post(url, headers=headers, json=data)
+    r = requests.post(url, headers=headers, json=data, timeout=30)
+    print(r.status_code, r.text)
 
 def main():
     hits = extract_hits()
