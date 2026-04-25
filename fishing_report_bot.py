@@ -73,8 +73,11 @@ def extract_hits():
 
             # 魚種＋釣果っぽい言葉、または場所＋釣果っぽい言葉だけ拾う
             if catch_hit and (area_hit or fish_hit):
-                hits.append(line)
-
+    # 数字入り優先（本物の釣果）
+    if any(char.isdigit() for char in line):
+        hits.insert(0, line)  # 上に持ってくる
+    else:
+        hits.append(line)
     clean = []
     for h in hits:
         if h not in clean:
