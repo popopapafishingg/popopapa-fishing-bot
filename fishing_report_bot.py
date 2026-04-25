@@ -63,6 +63,10 @@ def extract_hits():
         "バイブ", "セットアッパー", "飲ませ", "泳がせ"
     ]
 
+    SPECIAL_WORDS = [
+        "ナブラ", "なぶら", "入れ食い"
+    ]
+
     for url in URLS:
         html = fetch_page(url)
         if not html:
@@ -82,7 +86,14 @@ def extract_hits():
             area_hit = any(area in line for area in TARGET_AREAS)
             fish_hit = any(fish in line for fish in TARGET_FISH)
             catch_hit = any(word in line for word in CATCH_WORDS)
+            special_hit = any(word in line for word in SPECIAL_WORDS)
 
+            # 🔥 ナブラ・入れ食いは無条件で拾う
+            if special_hit:
+                hits.insert(0, line)
+                continue
+
+            # 通常判定
             if catch_hit and (area_hit or fish_hit):
                 if any(char.isdigit() for char in line):
                     hits.insert(0, line)
