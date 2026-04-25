@@ -9,7 +9,7 @@ def clean_env(name):
         v = v.split("=", 1)[1]
     return v
 
-LINE_TOKEN = clean_env("LINE_TOKEN")
+LINE_TOKEN = clean_env("LINE_TOKEN2")
 USER_ID = clean_env("USER_ID")
 
 print("TOKEN length:", len(LINE_TOKEN))
