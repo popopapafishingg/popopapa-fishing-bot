@@ -38,6 +38,19 @@ def fetch_page(url):
 def extract_hits():
     hits = []
 
+    NG_WORDS = [
+        "オフショア", "船", "イカダ", "カセ", "釣り方", "ジャンル",
+        "アジング", "メバリング", "ロックフィッシュ", "ULSJ", "ＵＬＳＪ",
+        "ショアジギング", "イカメタル", "ウキ釣り", "ヤエン",
+        "一覧", "カテゴリ", "エリア", "釣果情報", "新着", "人気"
+    ]
+
+    CATCH_WORDS = [
+        "釣れ", "釣果", "ヒット", "キャッチ", "本", "匹", "杯",
+        "cm", "㎝", "センチ", "朝", "夕", "ルアー", "ジグ",
+        "バイブ", "セットアッパー", "飲ませ", "泳がせ"
+    ]
+
     for url in URLS:
         html = fetch_page(url)
         if not html:
@@ -45,16 +58,22 @@ def extract_hits():
 
         soup = BeautifulSoup(html, "html.parser")
         text = soup.get_text("\n")
-
         lines = [line.strip() for line in text.splitlines() if line.strip()]
 
         for line in lines:
+            if len(line) < 8 or len(line) > 160:
+                continue
+
+            if any(ng in line for ng in NG_WORDS):
+                continue
+
             area_hit = any(area in line for area in TARGET_AREAS)
             fish_hit = any(fish in line for fish in TARGET_FISH)
+            catch_hit = any(word in line for word in CATCH_WORDS)
 
-            if area_hit or fish_hit:
-                if len(line) <= 120:
-                    hits.append(line)
+            # 魚種＋釣果っぽい言葉、または場所＋釣果っぽい言葉だけ拾う
+            if catch_hit and (area_hit or fish_hit):
+                hits.append(line)
 
     clean = []
     for h in hits:
