@@ -64,8 +64,6 @@ def extract_hits():
         lines = [line.strip() for line in text.splitlines() if line.strip()]
 
         for line in lines:
-            if "リアルタイム" in line or "情報" in line or "・・・" in line or "…" in line or "..." in line:
-    continue
             if len(line) < 8 or len(line) > 160:
                 continue
 
