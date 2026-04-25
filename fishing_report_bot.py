@@ -113,22 +113,41 @@ def judge_report(hits):
 
     score = 20
     blue_flag = False
+    nabl_flag = False
 
     for h in hits:
+
+        # 🔥 青物
         if any(word in h for word in ["サゴシ", "サワラ"]):
-            score += 40
+            score += 50
             blue_flag = True
 
         if any(word in h for word in ["ブリ", "メジロ", "ハマチ", "ツバス"]):
+            score += 50
+            blue_flag = True
+
+        # 🔥 ナブラ検出（最強）
+        if "ナブラ" in h or "なぶら" in h:
+            score += 60
+            nabl_flag = True
+            blue_flag = True
+
+        # 🔥 入れ食い
+        if "入れ食い" in h:
             score += 40
             blue_flag = True
 
+        # 雑魚
         if any(word in h for word in ["アジ", "チヌ", "サバ"]):
-            score += 5  # おまけ程度
+            score += 3
+
+    # 上限
+    if score > 100:
+        score = 100
 
     if score >= 80:
         mode = "爆釣モード🔥"
-        conclusion = "行かなあかん日やで"
+        conclusion = "今すぐ行かなあかん"
     elif score >= 60:
         mode = "チャンスあり"
         conclusion = "ワンチャンある"
@@ -154,7 +173,8 @@ def judge_report(hits):
 {conclusion}
 
 一言：
-{"ブリやで🔥" if blue_flag else "ブリやで（気配なし）"}"""
+{"ブリやで🔥" if blue_flag else "ブリやで（気配なし）"}
+{"ナブラ出てるぞ🔥" if nabl_flag else ""}"""
 
 def send_line(text):
     url = "https://api.line.me/v2/bot/message/broadcast"
