@@ -21,5 +21,14 @@ data = {
     ],
 }
 
+print("TOKEN length:", len(LINE_TOKEN))
+print("USER_ID:", USER_ID)
+print("USER_ID length:", len(USER_ID))
+print("TEXT:", data["messages"][0]["text"])
+print("TEXT length:", len(data["messages"][0]["text"]))
+print("DATA:", data)
+
 r = requests.post(url, headers=headers, json=data, timeout=30)
-print(r.status_code, r.text)
+
+print("STATUS:", r.status_code)
+print("RESPONSE:", r.text)
