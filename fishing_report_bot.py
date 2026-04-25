@@ -23,21 +23,21 @@ def fetch_page(url):
 def extract_hits():
     hits = []
 
-    for url in URLS:
-        html = fetch_page(url)
-        if not html:
+    html = fetch_page(URLS[0])
+    soup = BeautifulSoup(html, "html.parser")
+
+    articles = soup.select("h3")
+
+    for a in articles:
+        text = a.get_text(strip=True)
+
+        if len(text) < 10:
             continue
 
-        soup = BeautifulSoup(html, "html.parser")
-
-        articles = soup.select("h3")
-
-        for a in articles:
-            text = a.get_text(strip=True)
-
-            if len(text) < 10:
-                continue
-
+        # 🔥 青物だけ残す
+        if any(word in text for word in [
+            "サゴシ", "サワラ", "ブリ", "メジロ", "ハマチ", "ツバス"
+        ]):
             hits.append(text)
 
     # 重複削除
@@ -46,8 +46,8 @@ def extract_hits():
         if h not in clean:
             clean.append(h)
 
-    return clean[:10]
-
+    return clean[:5]
+    
 def judge_report(hits):
     now = datetime.now().strftime("%m/%d %H:%M")
 
