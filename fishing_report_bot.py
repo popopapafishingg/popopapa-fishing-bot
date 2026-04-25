@@ -103,29 +103,38 @@ def judge_report(hits):
         return f"""【ポポパパ釣果AI】
 更新：{now}
 
-釣果情報なし
+青物気配：なし
 
 結論：
-今日は様子見やで
+今日は無理せん方がええ日やで
 ブリやで（来てへん）"""
 
     body = "\n".join([f"・{h}" for h in hits])
 
-    score = 50
-    if any("サゴシ" in h or "サワラ" in h for h in hits):
-        score += 25
-    if any("ブリ" in h or "メジロ" in h for h in hits):
-        score += 25
+    score = 20
+    blue_flag = False
+
+    for h in hits:
+        if any(word in h for word in ["サゴシ", "サワラ"]):
+            score += 40
+            blue_flag = True
+
+        if any(word in h for word in ["ブリ", "メジロ", "ハマチ", "ツバス"]):
+            score += 40
+            blue_flag = True
+
+        if any(word in h for word in ["アジ", "チヌ", "サバ"]):
+            score += 5  # おまけ程度
 
     if score >= 80:
-        mode = "熱い"
-        conclusion = "行くべき日やで🔥"
+        mode = "爆釣モード🔥"
+        conclusion = "行かなあかん日やで"
     elif score >= 60:
-        mode = "普通"
-        conclusion = "ワンチャンあるで"
+        mode = "チャンスあり"
+        conclusion = "ワンチャンある"
     else:
         mode = "渋い"
-        conclusion = "様子見やな"
+        conclusion = "青物厳しい。様子見"
 
     return f"""【ポポパパ釣果AI】
 更新：{now}
@@ -145,7 +154,7 @@ def judge_report(hits):
 {conclusion}
 
 一言：
-ブリやで。たぶんアジやけど。"""
+{"ブリやで🔥" if blue_flag else "ブリやで（気配なし）"}"""
 
 def send_line(text):
     url = "https://api.line.me/v2/bot/message/broadcast"
