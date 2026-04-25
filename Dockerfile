@@ -4,11 +4,10 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-# ① 先にライブラリ入れる
 RUN pip install -r requirements.txt
 
-# ② そのあとPlaywright
-RUN playwright install --with-deps
+# 👇 ここが修正ポイント
+RUN python -m playwright install --with-deps
 
 COPY . .
 
