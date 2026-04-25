@@ -1,13 +1,22 @@
 import os
 import requests
 
-LINE_TOKEN = os.getenv("LINE_TOKEN", "").strip()
-USER_ID = os.getenv("USER_ID", "").strip()
+def clean_env(name):
+    v = os.getenv(name, "")
+    v = v.strip().strip('"').strip("'")
+    v = v.replace("\n", "").replace("\r", "").replace(" ", "")
+    if "=" in v:
+        v = v.split("=", 1)[1]
+    return v
+
+LINE_TOKEN = clean_env("LINE_TOKEN")
+USER_ID = clean_env("USER_ID")
+
+print("TOKEN length:", len(LINE_TOKEN))
+print("USER_ID:", USER_ID)
+print("USER_ID length:", len(USER_ID))
 
 def send_line(text):
-    if not LINE_TOKEN or not USER_ID:
-        raise ValueError("LINE_TOKEN または USER_ID が未設定")
-
     url = "https://api.line.me/v2/bot/message/push"
     headers = {
         "Authorization": f"Bearer {LINE_TOKEN}",
@@ -24,9 +33,5 @@ def send_line(text):
     if r.status_code >= 300:
         raise RuntimeError("LINE送信失敗")
 
-def main():
-    send_line("ポポパパ釣果AIテスト送信")
-    print("DONE")
-
-if __name__ == "__main__":
-    main()
+send_line("ポポパパ釣果AIテスト送信")
+print("DONE")
