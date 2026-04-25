@@ -54,3 +54,4 @@ if __name__ == "__main__":
         main()
     else:
         print("起動のみ（送信しない）")
+.
