@@ -12,3 +12,4 @@ RUN python -m playwright install --with-deps
 COPY . .
 
 CMD ["python", "fishing_report_bot.py"]
+# test
