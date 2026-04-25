@@ -47,5 +47,10 @@ def main():
     send_line(text)
 
 
+import os
+
 if __name__ == "__main__":
-    main()
+    if os.getenv("RUN_MODE") == "cron":
+        main()
+    else:
+        print("起動のみ（送信しない）")
