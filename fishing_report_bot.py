@@ -7,23 +7,21 @@ LINE_TOKEN = "IAYqlIVl9Jh6RcvZ5C+YpHmPUv7B7uxLAU89NPSakzeS/25hb/VWjM70OvmihycYxE
 
 USER_ID = "Uf7e227607853d00dc5b4d9614f4761ab"
 
-URLS = [
-    "https://fishingmax.co.jp/fishingpost/",
-]
+URL = "https://fishingmax.co.jp/fishingpost/"
 
-def fetch_page(url):
+def fetch_page():
     headers = {"User-Agent": "Mozilla/5.0"}
-    r = requests.get(url, headers=headers, timeout=20)
+    r = requests.get(URL, headers=headers, timeout=20)
     r.raise_for_status()
     return r.text
 
 def extract_hits():
-    hits = []
+    blue_hits = []
+    sub_hits = []
 
-    html = fetch_page(URLS[0])
+    html = fetch_page()
     soup = BeautifulSoup(html, "html.parser")
 
-    # 🔥 釣果記事タイトルだけ取得
     articles = soup.select("h3")
 
     for a in articles:
@@ -32,12 +30,21 @@ def extract_hits():
         if len(text) < 10:
             continue
 
-        # 青物・釣果系だけ
+        # 🔥 青物
         if any(word in text for word in [
-            "サゴシ", "サワラ", "ブリ", "メジロ", "ハマチ", "ツバス",
-            "ナブラ", "入れ食い"
+            "サゴシ", "サワラ", "ブリ", "メジロ", "ハマチ", "ツバス"
         ]):
-            hits.append(text)
+            blue_hits.append(text)
+            continue
+
+        # 🔸 サブ釣果（保険）
+        if any(word in text for word in [
+            "アジ", "サバ", "チヌ", "イカ"
+        ]):
+            sub_hits.append(text)
+
+    # 優先：青物 → 無ければサブ
+    hits = blue_hits if blue_hits else sub_hits
 
     # 重複削除
     clean = []
@@ -45,7 +52,7 @@ def extract_hits():
         if h not in clean:
             clean.append(h)
 
-    return clean[:10]
+    return clean[:5]
 
 def judge_report(hits):
     now = datetime.now().strftime("%m/%d %H:%M")
@@ -54,17 +61,16 @@ def judge_report(hits):
         return f"""【ポポパパ釣果AI】
 更新：{now}
 
-青物気配：なし
+釣果情報なし
 
 結論：
-今日は無理せん方がええ日やで
+今日は完全に様子見や
 ブリやで（来てへん）"""
 
     body = "\n".join([f"・{h}" for h in hits])
 
     score = 20
     blue_flag = False
-    nabl_flag = False
 
     for h in hits:
         if any(word in h for word in ["サゴシ", "サワラ"]):
@@ -75,17 +81,6 @@ def judge_report(hits):
             score += 40
             blue_flag = True
 
-        if "ナブラ" in h:
-            score += 50
-            nabl_flag = True
-            blue_flag = True
-
-        if "入れ食い" in h:
-            score += 30
-            blue_flag = True
-
-    score = min(score, 100)
-
     if score >= 80:
         mode = "爆釣🔥"
         conclusion = "今すぐ行け"
@@ -94,7 +89,7 @@ def judge_report(hits):
         conclusion = "ワンチャンあり"
     else:
         mode = "渋い"
-        conclusion = "様子見"
+        conclusion = "青物厳しい"
 
     return f"""【ポポパパ釣果AI】
 更新：{now}
@@ -109,8 +104,7 @@ def judge_report(hits):
 {conclusion}
 
 一言：
-{"ブリやで🔥" if blue_flag else "ブリやで（気配なし）"}
-{"ナブラ出てるぞ🔥" if nabl_flag else ""}"""
+{"ブリやで🔥" if blue_flag else "ブリやで（気配なし）"}"""
 
 def send_line(text):
     url = "https://api.line.me/v2/bot/message/broadcast"
