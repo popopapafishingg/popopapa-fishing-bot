@@ -8,21 +8,26 @@ LINE_TOKEN = "IAYqlIVl9Jh6RcvZ5C+YpHmPUv7B7uxLAU89NPSakzeS/25hb/VWjM70OvmihycYxE
 USER_ID = "Uf7e227607853d00dc5b4d9614f4761ab"
 
 URLS = [
-    "https://fishingmax.co.jp/fishingpost-cat/osaka/",
-    "https://fishingmax.co.jp/fishingpost-cat/wakayama/",
+    "https://fishingmax.co.jp/fishingpost/",
 ]
 
 def fetch_page(url):
-    headers = {"User-Agent": "Mozilla/5.0"}
-    r = requests.get(url, headers=headers, timeout=20)
-    r.raise_for_status()
-    return r.text
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=headers, timeout=20)
+        return r.text
+    except Exception as e:
+        print("ERROR:", e)
+        return ""
 
 def extract_hits():
     hits = []
 
     for url in URLS:
         html = fetch_page(url)
+        if not html:
+            continue
+
         soup = BeautifulSoup(html, "html.parser")
 
         articles = soup.select("h3")
@@ -78,7 +83,8 @@ def send_line(text):
         "messages": [{"type": "text", "text": text[:4500]}],
     }
 
-    requests.post(url, headers=headers, json=data)
+    r = requests.post(url, headers=headers, json=data)
+    print(r.status_code, r.text)
 
 def main():
     hits = extract_hits()
