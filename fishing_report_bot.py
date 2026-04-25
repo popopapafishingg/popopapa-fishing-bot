@@ -1,18 +1,17 @@
-import os
 import requests
 
-print("ENV keys:", [k for k in os.environ.keys() if "LINE" in k or "TOKEN" in k or "USER" in k or "POPO" in k])
+LINE_TOKEN = "ここにトークンそのまま貼る"
+USER_ID = "U7fe227607853d00dc5b4d9614f4761ab"
 
-def clean_env(name):
-    v = os.getenv(name, "")
-    v = v.strip().strip('"').strip("'")
-    v = v.replace("\n", "").replace("\r", "").replace(" ", "")
-    if "=" in v:
-        v = v.split("=", 1)[1]
-    return v
+url = "https://api.line.me/v2/bot/message/push"
+headers = {
+    "Authorization": f"Bearer {LINE_TOKEN}",
+    "Content-Type": "application/json",
+}
+data = {
+    "to": USER_ID,
+    "messages": [{"type": "text", "text": "ポポパパ釣果AIテスト送信"}],
+}
 
-LINE_TOKEN = clean_env("POPO_LINE_TOKEN")
-USER_ID = clean_env("USER_ID")
-
-print("POPO_LINE_TOKEN長:", len(LINE_TOKEN))
-print("USER_ID長:", len(USER_ID))
+r = requests.post(url, headers=headers, json=data)
+print(r.status_code, r.text)
