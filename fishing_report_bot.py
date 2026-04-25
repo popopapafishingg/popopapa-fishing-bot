@@ -1,7 +1,6 @@
 import requests
 from datetime import datetime
 
-# 🔴 ここは自分のやつ（さっき成功したやつ）
 LINE_TOKEN = "POPO_LINE_TOKEN=IAYqlIVl9Jh6RcvZ5C+YpHmPUv7B7uxLAU89NPSakzeS/25hb/VWjM70OvmihycYxE/C1ssd0nmdTDMTNQzlu6R6NQ95k5ccLZCuFyc19eAh1Gdx8W+hBjezZa0GdKrf+Ej+TIEaYYOd4qQBohYddQdB04t89/1O/w1cDnyilFU="
 USER_ID = "U7fe227607853d00dc5b4d9614f4761ab"
 
