@@ -8,35 +8,7 @@ LINE_TOKEN = "IAYqlIVl9Jh6RcvZ5C+YpHmPUv7B7uxLAU89NPSakzeS/25hb/VWjM70OvmihycYxE
 USER_ID = "Uf7e227607853d00dc5b4d9614f4761ab"
 
 URLS = [
-    "https://anglers.jp/areas/1309/fishes/932/catches",
-    "https://anglers.jp/areas/2306/fishes/932/catches",
     "https://fishingmax.co.jp/fishingpost/",
-]
-
-TARGET_AREAS = [
-    "和歌山マリーナシティ",
-    "マリーナシティ",
-    "和歌山市",
-    "貝塚人工島",
-    "貝塚",
-    "田ノ浦",
-    "雑賀崎",
-    "紀ノ川",
-    "水軒",
-    "煙樹ヶ浜",
-    "樽井",
-    "りんくう",
-
-    # 🔥 追加（超重要）
-    "加太",
-    "衣奈",
-    "由良",
-    "日高",
-    "白浜",
-    "御坊",
-    "有田",
-    "海南",
-    "湯浅",
 ]
 
 TARGET_FISH = [
@@ -57,60 +29,25 @@ def fetch_page(url):
 def extract_hits():
     hits = []
 
-    NG_WORDS = [
-        "オフショア", "船", "イカダ", "カセ", "釣り方", "ジャンル",
-        "アジング", "メバリング", "ロックフィッシュ", "ULSJ", "ＵＬＳＪ",
-        "ショアジギング", "イカメタル", "ウキ釣り", "ヤエン",
-        "一覧", "カテゴリ", "エリア", "釣果情報", "新着", "人気",
-        "リアルタイム", "リアルタイム情報", "情報", "注目", "特集",
-        "無料釣り場", "最大級", "近年", "集まっています",
-        "・・・", "…", "...",
-        "汐見埠頭"
-    ]
+    soup = BeautifulSoup(fetch_page(URLS[0]), "html.parser")
+    text = soup.get_text("\n")
 
-    CATCH_WORDS = [
-        "釣れ", "釣果", "ヒット", "キャッチ", "本", "匹", "杯",
-        "cm", "㎝", "センチ", "朝", "夕", "ルアー", "ジグ",
-        "バイブ", "セットアッパー", "飲ませ", "泳がせ"
-    ]
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
 
-    SPECIAL_WORDS = [
-        "ナブラ", "なぶら", "入れ食い"
-    ]
+    for line in lines:
 
-    for url in URLS:
-        html = fetch_page(url)
-        if not html:
+        # 🔥 ナブラ系は無条件採用
+        if any(word in line for word in ["ナブラ", "なぶら", "入れ食い"]):
+            hits.insert(0, line)
             continue
 
-        soup = BeautifulSoup(html, "html.parser")
-        text = soup.get_text("\n")
-        lines = [line.strip() for line in text.splitlines() if line.strip()]
-
-        for line in lines:
-            if len(line) < 8 or len(line) > 160:
-                continue
-
-            if any(ng in line for ng in NG_WORDS):
-                continue
-
-            area_hit = any(area in line for area in TARGET_AREAS)
-            fish_hit = any(fish in line for fish in TARGET_FISH)
-            catch_hit = any(word in line for word in CATCH_WORDS)
-            special_hit = any(word in line for word in SPECIAL_WORDS)
-
-            # 🔥 ナブラ・入れ食いは無条件で拾う
-            if special_hit:
+        # 青物だけ拾う
+        if any(fish in line for fish in ["メジロ", "ブリ", "ハマチ", "ツバス", "サゴシ", "サワラ"]):
+            if "釣れ" in line or "ヒット" in line:
                 hits.insert(0, line)
                 continue
 
-            # 通常判定
-            if catch_hit and (area_hit or fish_hit):
-                if any(char.isdigit() for char in line):
-                    hits.insert(0, line)
-                else:
-                    hits.append(line)
-
+    # 重複削除
     clean = []
     for h in hits:
         if h not in clean:
@@ -139,57 +76,44 @@ def judge_report(hits):
 
     for h in hits:
 
-        # 🔥 青物
         if any(word in h for word in ["サゴシ", "サワラ"]):
-            score += 50
-            blue_flag = True
-
-        if any(word in h for word in ["ブリ", "メジロ", "ハマチ", "ツバス"]):
-            score += 50
-            blue_flag = True
-
-        # 🔥 ナブラ検出（最強）
-        if "ナブラ" in h or "なぶら" in h:
-            score += 60
-            nabl_flag = True
-            blue_flag = True
-
-        # 🔥 入れ食い
-        if "入れ食い" in h:
             score += 40
             blue_flag = True
 
-        # 雑魚
-        if any(word in h for word in ["アジ", "チヌ", "サバ"]):
-            score += 3
+        if any(word in h for word in ["ブリ", "メジロ", "ハマチ", "ツバス"]):
+            score += 40
+            blue_flag = True
 
-    # 上限
+        if "ナブラ" in h or "なぶら" in h:
+            score += 50
+            nabl_flag = True
+            blue_flag = True
+
+        if "入れ食い" in h:
+            score += 30
+            blue_flag = True
+
     if score > 100:
         score = 100
 
     if score >= 80:
-        mode = "爆釣モード🔥"
-        conclusion = "今すぐ行かなあかん"
+        mode = "爆釣🔥"
+        conclusion = "今すぐ行け"
     elif score >= 60:
-        mode = "チャンスあり"
-        conclusion = "ワンチャンある"
+        mode = "チャンス"
+        conclusion = "ワンチャンあり"
     else:
         mode = "渋い"
-        conclusion = "青物厳しい。様子見"
+        conclusion = "様子見"
 
     return f"""【ポポパパ釣果AI】
 更新：{now}
 
 モード：{mode}
-スコア：{score}点
+スコア：{score}
 
 直近気配：
 {body}
-
-ルアー候補：
-1位 ジグ
-2位 バイブ
-3位 セットアッパー
 
 結論：
 {conclusion}
@@ -208,8 +132,7 @@ def send_line(text):
         "messages": [{"type": "text", "text": text[:4500]}],
     }
 
-    r = requests.post(url, headers=headers, json=data, timeout=30)
-    print(r.status_code, r.text)
+    requests.post(url, headers=headers, json=data)
 
 def main():
     hits = extract_hits()
