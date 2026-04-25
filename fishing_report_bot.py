@@ -20,6 +20,5 @@ data = {
     ],
 }
 
-r = requests.post(url, headers=headers, json=data)
-
+r = requests.post(url, headers=headers, json=data, timeout=30)
 print(r.status_code, r.text)
