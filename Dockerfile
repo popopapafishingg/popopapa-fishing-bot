@@ -1,10 +1,8 @@
-FROM mcr.microsoft.com/playwright/python:v1.52.0-noble
+FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN pip install requests beautifulsoup4 playwright
-
-RUN python -m playwright install --with-deps
+RUN pip install requests beautifulsoup4
 
 COPY . .
 
