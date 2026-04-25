@@ -6,6 +6,7 @@ LINE_TOKEN = "IAYqlIVl9Jh6RcvZ5C+YpHmPUv7B7uxLAU89NPSakzeS/25hb/VWjM70OvmihycYxE
 
 USER_ID = "Uf7e227607853d00dc5b4d9614f4761ab"
 
+
 URLS = [
     "https://anglers.jp/areas/1309/fishes/932/catches",  # 和歌山マリーナシティ サゴシ
     "https://anglers.jp/areas/2306/fishes/932/catches",  # 貝塚人工島 サゴシ
@@ -53,7 +54,7 @@ def extract_hits():
         "ショアジギング", "イカメタル", "ウキ釣り", "ヤエン",
         "一覧", "カテゴリ", "エリア", "釣果情報", "新着", "人気",
         "リアルタイム", "リアルタイム情報", "情報", "注目", "特集",
-        "無料釣り場", "最大級", "近年", "集まっています",
+        "無料釣り場", "最大級", "近年","汐見埠頭", "集まっています",
         "・・・", "…", "...",
     ]
 
