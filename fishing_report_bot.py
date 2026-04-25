@@ -1,3 +1,4 @@
+print("🔥 最新コード動いてる 🔥")
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -55,10 +56,7 @@ def extract_hits():
     return clean[:5]
 
 def judge_report(hits):
-    now = datetime.now().strftime("%m/%d %H:%M")
-
-    if not hits:
-        return f"""【ポポパパ釣果AI】
+    return "🔥 新版テスト成功 🔥"
 更新：{now}
 
 釣果情報なし
