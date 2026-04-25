@@ -7,8 +7,9 @@ LINE_TOKEN = "IAYqlIVl9Jh6RcvZ5C+YpHmPUv7B7uxLAU89NPSakzeS/25hb/VWjM70OvmihycYxE
 USER_ID = "Uf7e227607853d00dc5b4d9614f4761ab"
 
 URLS = [
+    "https://anglers.jp/areas/1309/fishes/932/catches",  # 和歌山マリーナシティ サゴシ
+    "https://anglers.jp/areas/2306/fishes/932/catches",  # 貝塚人工島 サゴシ
     "https://fishingmax.co.jp/fishingpost/",
-    "https://anglers.jp/",
 ]
 
 TARGET_AREAS = [
@@ -21,6 +22,9 @@ TARGET_AREAS = [
     "煙樹ヶ浜",
     "樽井",
     "りんくう",
+    "マリーナシティ",
+　　"和歌山市",
+　　"貝塚",
 ]
 
 TARGET_FISH = [
