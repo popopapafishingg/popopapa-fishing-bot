@@ -6,16 +6,18 @@ LINE_TOKEN = "IAYqlIVl9Jh6RcvZ5C+YpHmPUv7B7uxLAU89NPSakzeS/25hb/VWjM70OvmihycYxE
 
 USER_ID = "Uf7e227607853d00dc5b4d9614f4761ab"
 
-
 URLS = [
-    "https://anglers.jp/areas/1309/fishes/932/catches",  # 和歌山マリーナシティ サゴシ
-    "https://anglers.jp/areas/2306/fishes/932/catches",  # 貝塚人工島 サゴシ
+    "https://anglers.jp/areas/1309/fishes/932/catches",
+    "https://anglers.jp/areas/2306/fishes/932/catches",
     "https://fishingmax.co.jp/fishingpost/",
 ]
 
 TARGET_AREAS = [
     "和歌山マリーナシティ",
+    "マリーナシティ",
+    "和歌山市",
     "貝塚人工島",
+    "貝塚",
     "田ノ浦",
     "雑賀崎",
     "紀ノ川",
@@ -23,9 +25,6 @@ TARGET_AREAS = [
     "煙樹ヶ浜",
     "樽井",
     "りんくう",
-    "マリーナシティ",
-　　"和歌山市",
-　　"貝塚",
 ]
 
 TARGET_FISH = [
@@ -33,7 +32,6 @@ TARGET_FISH = [
     "サワラ", "サゴシ",
     "アジ", "ヒラメ", "マゴチ", "ヒラスズキ", "アオリイカ"
 ]
-
 
 def fetch_page(url):
     try:
@@ -44,7 +42,6 @@ def fetch_page(url):
     except:
         return ""
 
-
 def extract_hits():
     hits = []
 
@@ -54,8 +51,9 @@ def extract_hits():
         "ショアジギング", "イカメタル", "ウキ釣り", "ヤエン",
         "一覧", "カテゴリ", "エリア", "釣果情報", "新着", "人気",
         "リアルタイム", "リアルタイム情報", "情報", "注目", "特集",
-        "無料釣り場", "最大級", "近年","汐見埠頭", "集まっています",
+        "無料釣り場", "最大級", "近年", "集まっています",
         "・・・", "…", "...",
+        "汐見埠頭"
     ]
 
     CATCH_WORDS = [
@@ -74,14 +72,10 @@ def extract_hits():
         lines = [line.strip() for line in text.splitlines() if line.strip()]
 
         for line in lines:
-
             if len(line) < 8 or len(line) > 160:
                 continue
 
             if any(ng in line for ng in NG_WORDS):
-                continue
-
-            if "リアルタイム" in line or "情報" in line:
                 continue
 
             area_hit = any(area in line for area in TARGET_AREAS)
@@ -89,7 +83,6 @@ def extract_hits():
             catch_hit = any(word in line for word in CATCH_WORDS)
 
             if catch_hit and (area_hit or fish_hit):
-                # 数字入り優先（ガチ釣果）
                 if any(char.isdigit() for char in line):
                     hits.insert(0, line)
                 else:
@@ -101,7 +94,6 @@ def extract_hits():
             clean.append(h)
 
     return clean[:10]
-
 
 def judge_report(hits):
     now = datetime.now().strftime("%m/%d %H:%M")
@@ -154,7 +146,6 @@ def judge_report(hits):
 一言：
 ブリやで。たぶんアジやけど。"""
 
-
 def send_line(text):
     url = "https://api.line.me/v2/bot/message/broadcast"
     headers = {
@@ -168,14 +159,10 @@ def send_line(text):
     r = requests.post(url, headers=headers, json=data, timeout=30)
     print(r.status_code, r.text)
 
-
 def main():
     hits = extract_hits()
     report = judge_report(hits)
     send_line(report)
-
-
-import os
 
 if __name__ == "__main__":
     if os.getenv("RUN_MODE") == "cron":
