@@ -11,92 +11,76 @@ URLS = [
     "https://fishingmax.co.jp/fishingpost/",
 ]
 
-BLUE_WORDS = [
-    "サゴシ", "サワラ", "ブリ", "メジロ", "ハマチ", "ツバス"
-]
-
-NABRA_WORDS = [
-    "ナブラ", "なぶら", "入れ食い", "ボイル", "沸き", "湧き"
-]
-
-BAIT_WORDS = [
-    "アジ", "マアジ", "サバ", "イワシ", "カタクチ", "コノシロ", "サヨリ", "ベイト"
-]
+BLUE_WORDS = ["サゴシ","サワラ","ブリ","メジロ","ハマチ","ツバス"]
+NABRA_WORDS = ["ナブラ","なぶら","入れ食い","ボイル"]
+BAIT_WORDS = ["アジ","サバ","イワシ","コノシロ","サヨリ"]
 
 BAD_WORDS = [
-    "入荷", "新商品", "商品", "お知らせ", "セール", "イベント",
-    "スタッフ", "ボート", "沖", "船", "須磨", "汐見", "助松",
-    "公園", "お持ち込み", "チャレ", "・・・", "...",
-    "営業時間", "募集", "エサコーナー"
+    "入荷","商品","お知らせ","セール","イベント",
+    "スタッフ","ボート","沖","船",
+    "須磨","汐見","助松","公園",
+    "お持ち込み","チャレ","・・・"
 ]
 
 TARGET_AREAS = [
-    "貝塚", "貝塚人工島",
-    "和歌山", "マリーナ", "和歌山マリーナシティ",
-    "田ノ浦", "雑賀崎", "紀ノ川", "水軒",
-    "加太", "衣奈", "由良", "湯浅", "海南"
+    "貝塚","和歌山","マリーナ","田ノ浦","雑賀崎","紀ノ川","水軒"
 ]
 
 def clean(text):
     text = re.sub(r"<[^>]+>", "", text)
-    text = text.replace("\n", "")
-    text = text.replace("　", " ")
     return text.strip()
 
 def fetch(url):
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=15)
-        return r.text
-    except Exception as e:
-        print("FETCH ERROR:", e)
+        return requests.get(url, timeout=10).text
+    except:
         return ""
 
-def unique(items):
+def uniq(lst):
     out = []
-    for x in items:
+    for x in lst:
         if x not in out:
             out.append(x)
     return out
 
 def extract():
-    nabra_hits = []
-    blue_hits = []
-    bait_hits = []
+    nabra = []
+    blue = []
+    bait = []
 
     for url in URLS:
         html = fetch(url)
         soup = BeautifulSoup(html, "html.parser")
 
-        for tag in soup.find_all(["a", "h1", "h2", "h3", "p"]):
-            text = clean(tag.get_text(" ", strip=True))
+        for tag in soup.find_all(["a","h1","h2","h3","p"]):
+            text = clean(tag.get_text())
 
-            if len(text) < 8 or len(text) > 130:
+            if len(text) < 10 or len(text) > 120:
                 continue
 
-            if any(bad in text for bad in BAD_WORDS):
+            if any(b in text for b in BAD_WORDS):
                 continue
 
-            area_hit = any(area in text for area in TARGET_AREAS)
-            nabra_hit = any(w in text for w in NABRA_WORDS)
-            blue_hit = any(w in text for w in BLUE_WORDS)
-            bait_hit = any(w in text for w in BAIT_WORDS)
+            area = any(a in text for a in TARGET_AREAS)
 
-            if nabra_hit and (area_hit or blue_hit):
-                nabra_hits.append(text)
+            # ナブラ（最優先）
+            if any(w in text for w in NABRA_WORDS) and area:
+                nabra.append(text)
                 continue
 
-            if blue_hit and area_hit:
-                blue_hits.append(text)
+            # 青物（エリア限定）
+            if any(w in text for w in BLUE_WORDS) and area:
+                blue.append(text)
                 continue
 
-            if bait_hit and area_hit:
-                bait_hits.append(text)
+            # ベイト（エリア無視）
+            if any(w in text for w in BAIT_WORDS):
+                bait.append(text)
 
-    return unique(nabra_hits)[:5], unique(blue_hits)[:5], unique(bait_hits)[:5]
+    return uniq(nabra)[:5], uniq(blue)[:5], uniq(bait)[:5]
 
-def short(text):
-    return text[:55] + "…" if len(text) > 55 else text
+def short(t):
+    return t[:45] + "…" if len(t) > 45 else t
 
 def make_report(nabra, blue, bait):
     now = datetime.now().strftime("%m/%d %H:%M")
@@ -107,13 +91,12 @@ def make_report(nabra, blue, bait):
 更新：{now}
 
 🔥爆釣モード🔥
-ナブラ・湧き気配あり
+ナブラ発生
 
 {body}
 
 結論：
-今すぐ行く価値あり
-ジグ・ブレード・セットアッパー準備
+今すぐ行け
 ブリやで🔥"""
 
     if blue:
@@ -127,7 +110,6 @@ def make_report(nabra, blue, bait):
 
 結論：
 朝マズメ勝負
-ワンチャンあるで
 ブリやで🔥"""
 
     if bait:
@@ -154,23 +136,17 @@ def make_report(nabra, blue, bait):
 ブリやで（来てへん）"""
 
 def send(msg):
-    r = requests.post(
+    requests.post(
         "https://api.line.me/v2/bot/message/broadcast",
         headers={
             "Authorization": f"Bearer {LINE_TOKEN}",
             "Content-Type": "application/json",
         },
-        json={"messages": [{"type": "text", "text": msg[:4500]}]},
-        timeout=30,
+        json={"messages":[{"type":"text","text":msg}]}
     )
-    print("送信結果:", r.status_code, r.text)
 
 def main():
-    print("ポポパパ釣果AI 起動")
     nabra, blue, bait = extract()
-    print("ナブラ件数:", len(nabra))
-    print("青物件数:", len(blue))
-    print("ベイト件数:", len(bait))
     msg = make_report(nabra, blue, bait)
     print(msg)
     send(msg)
