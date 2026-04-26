@@ -11,28 +11,31 @@ URLS = [
     "https://fishingmax.co.jp/fishingpost/",
 ]
 
-# 🔥 青物ワード強化版
+# 🎯 青物（広めに拾う）
 BLUE_WORDS = [
     "サゴシ","サワラ","ブリ","メジロ","ハマチ","ツバス",
-    "ナブラ","入れ食い",
-    "青物","ノマセ","飲ませ","泳がせ","ヒット","釣果"
+    "ナブラ","入れ食い","青物",
+    "ノマセ","飲ませ","泳がせ","ヒット"
 ]
 
+# 🎯 ベイト
 BAIT_WORDS = [
     "アジ","マアジ","サバ","イワシ","カタクチ","コノシロ","サヨリ","ベイト"
 ]
 
+# 🎯 対象エリア
 GOOD_AREAS = [
     "貝塚","貝塚人工島","和歌山","マリーナ","田ノ浦",
     "雑賀崎","紀ノ川","水軒","加太","衣奈","中紀"
 ]
 
+# ❌ 完全排除（見出し・広告・関係ない場所）
 BAD_WORDS = [
     "入荷","商品","お知らせ","セール","イベント","営業時間",
     "スタッフ募集","アジング・メバリング","ロックフィッシュ",
     "南芦屋浜","須磨","六甲","船","ボート","沖","イカダ",
-    "チャレ","・・・","...","2026/04/03",
-"04/03",
+    "チャレ","・・・","...",
+    "釣果情報","海釣り 釣果情報","川釣り 釣果情報"
 ]
 
 def clean(text):
@@ -58,11 +61,11 @@ def uniq(items):
     return out
 
 def short(text):
-    return text[:55] + "…" if len(text) > 55 else text
+    return text[:60] + "…" if len(text) > 60 else text
 
 def extract():
     blue = []
-    bait_good_area = []
+    bait_good = []
     bait_any = []
 
     for url in URLS:
@@ -72,37 +75,42 @@ def extract():
         for tag in soup.find_all(["a","h1","h2","h3","p"]):
             text = clean(tag.get_text(" ", strip=True))
 
-            if len(text) < 8 or len(text) > 160:
+            if len(text) < 10 or len(text) > 160:
                 continue
 
             if any(bad in text for bad in BAD_WORDS):
+                continue
+
+            # 🎯 内容があるものだけ残す
+            if not any(w in text for w in BLUE_WORDS + BAIT_WORDS):
                 continue
 
             area = any(a in text for a in GOOD_AREAS)
             is_blue = any(w in text for w in BLUE_WORDS)
             is_bait = any(w in text for w in BAIT_WORDS)
 
-            # 青物（最優先）
+            # 🔥 青物最優先
             if is_blue:
                 blue.append(text)
                 continue
 
-            # ベイト（対象エリア）
+            # 🎯 ベイト（エリア内）
             if is_bait and area:
-                bait_good_area.append(text)
+                bait_good.append(text)
                 continue
 
-            # 空回避用
+            # 🛟 空回避用
             if is_bait:
                 bait_any.append(text)
 
+    # 🔥 最新順だけ使用
     blue = uniq(blue)[:3]
-    bait_good_area = uniq(bait_good_area)[:3]
+    bait_good = uniq(bait_good)[:3]
     bait_any = uniq(bait_any)[:2]
 
-    return blue, bait_good_area, bait_any
+    return blue, bait_good, bait_any
 
-def make_report(blue, bait_good_area, bait_any):
+def make_report(blue, bait_good, bait_any):
     now = datetime.now().strftime("%m/%d %H:%M")
 
     if blue:
@@ -118,8 +126,8 @@ def make_report(blue, bait_good_area, bait_any):
 朝マズメ勝負
 ブリやで🔥"""
 
-    if bait_good_area:
-        body = "\n".join([f"・{short(x)}" for x in bait_good_area])
+    if bait_good:
+        body = "\n".join([f"・{short(x)}" for x in bait_good])
         return f"""【ポポパパ釣果AI】
 更新：{now}
 
@@ -149,7 +157,7 @@ def make_report(blue, bait_good_area, bait_any):
     return f"""【ポポパパ釣果AI】
 更新：{now}
 
-青物気配なし
+気配なし
 
 結論：
 今日は様子見や
@@ -166,8 +174,8 @@ def send(msg):
     )
 
 def main():
-    blue, bait_good_area, bait_any = extract()
-    msg = make_report(blue, bait_good_area, bait_any)
+    blue, bait_good, bait_any = extract()
+    msg = make_report(blue, bait_good, bait_any)
     print(msg)
     send(msg)
 
