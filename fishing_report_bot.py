@@ -11,8 +11,16 @@ URLS = [
     "https://fishingmax.co.jp/fishingpost/",
 ]
 
-BLUE_WORDS = ["サゴシ","サワラ","ブリ","メジロ","ハマチ","ツバス","ナブラ","入れ食い"]
-BAIT_WORDS = ["アジ","マアジ","サバ","イワシ","カタクチ","コノシロ","サヨリ","ベイト"]
+# 🔥 青物ワード強化版
+BLUE_WORDS = [
+    "サゴシ","サワラ","ブリ","メジロ","ハマチ","ツバス",
+    "ナブラ","入れ食い",
+    "青物","ノマセ","飲ませ","泳がせ","ヒット","釣果"
+]
+
+BAIT_WORDS = [
+    "アジ","マアジ","サバ","イワシ","カタクチ","コノシロ","サヨリ","ベイト"
+]
 
 GOOD_AREAS = [
     "貝塚","貝塚人工島","和歌山","マリーナ","田ノ浦",
@@ -73,7 +81,7 @@ def extract():
             is_blue = any(w in text for w in BLUE_WORDS)
             is_bait = any(w in text for w in BAIT_WORDS)
 
-            # 青物（優先）
+            # 青物（最優先）
             if is_blue:
                 blue.append(text)
                 continue
@@ -83,11 +91,10 @@ def extract():
                 bait_good_area.append(text)
                 continue
 
-            # 空回避用ベイト
+            # 空回避用
             if is_bait:
                 bait_any.append(text)
 
-    # 🔥 上から最新順だけ使う（ここがポイント）
     blue = uniq(blue)[:3]
     bait_good_area = uniq(bait_good_area)[:3]
     bait_any = uniq(bait_any)[:2]
