@@ -1,3 +1,4 @@
+print("VERSION_20260426_BAIT_TEST")
 import requests
 import os
 import re
