@@ -1,33 +1,43 @@
 import requests
 import os
 from datetime import datetime
+from bs4 import BeautifulSoup
 
 LINE_TOKEN = os.getenv("POPO_LINE_TOKEN")
 
-URLS = [
-    "https://f-marunishi.com/fishing/",
-    "https://anglers.jp/",
-]
+URL = "https://f-marunishi.com/fishing/fishingcat/sea"
 
-KEYWORDS = [
-    "サゴシ","サワラ","ブリ","メジロ","ハマチ","ツバス","ナブラ","入れ食い"
-]
+KEYWORDS = ["サゴシ","サワラ","ブリ","メジロ","ハマチ","ツバス","ナブラ","入れ食い"]
+BAD_WORDS = ["入荷","お知らせ","セール","商品","イベント"]
 
-def fetch(url):
+def fetch():
     try:
-        r = requests.get(url, timeout=10)
+        r = requests.get(URL, timeout=10)
         return r.text
     except:
         return ""
 
 def extract():
+    html = fetch()
+    soup = BeautifulSoup(html, "html.parser")
+
     hits = []
-    for url in URLS:
-        html = fetch(url)
-        for line in html.split("\n"):
-            if any(k in line for k in KEYWORDS):
-                hits.append(line.strip())
-    return list(set(hits))[:5]
+
+    for a in soup.find_all("a"):
+        text = a.get_text(strip=True)
+
+        if len(text) < 10 or len(text) > 100:
+            continue
+
+        # ゴミ除去
+        if any(b in text for b in BAD_WORDS):
+            continue
+
+        # 青物系だけ
+        if any(k in text for k in KEYWORDS):
+            hits.append(text)
+
+    return list(dict.fromkeys(hits))[:5]
 
 def send(msg):
     requests.post(
@@ -53,7 +63,8 @@ def main():
 今日は様子見や
 ブリやで（来てへん）"""
     else:
-        body = "\n".join([f"・{h[:50]}" for h in hits])
+        body = "\n".join([f"・{h}" for h in hits])
+
         msg = f"""【ポポパパ釣果AI】
 更新：{now}
 
