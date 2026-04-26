@@ -11,9 +11,13 @@ URLS = [
     "https://fishingmax.co.jp/fishingpost/",
 ]
 
-KEYWORDS = [
+BLUE_WORDS = [
     "サゴシ", "サワラ", "ブリ", "メジロ", "ハマチ", "ツバス",
     "ナブラ", "なぶら", "入れ食い"
+]
+
+BAIT_WORDS = [
+    "アジ", "サバ", "イワシ", "コノシロ", "ベイト", "小魚"
 ]
 
 BAD_WORDS = [
@@ -26,8 +30,7 @@ def clean_text(text):
     text = re.sub(r"<[^>]+>", "", text)
     text = text.replace("&nbsp;", " ")
     text = text.replace("&amp;", "&")
-    text = text.strip()
-    return text
+    return text.strip()
 
 def fetch(url):
     try:
@@ -40,7 +43,8 @@ def fetch(url):
         return ""
 
 def extract():
-    hits = []
+    blue_hits = []
+    bait_hits = []
 
     for url in URLS:
         html = fetch(url)
@@ -52,46 +56,69 @@ def extract():
         for tag in soup.find_all(["a", "h1", "h2", "h3", "p"]):
             text = clean_text(tag.get_text(" ", strip=True))
 
-            if len(text) < 8 or len(text) > 120:
+            if len(text) < 8 or len(text) > 140:
                 continue
 
             if any(bad in text for bad in BAD_WORDS):
                 continue
 
-            if any(key in text for key in KEYWORDS):
-                hits.append(text)
+            if any(word in text for word in BLUE_WORDS):
+                blue_hits.append(text)
+                continue
 
-    clean = []
-    for h in hits:
-        if h not in clean:
-            clean.append(h)
+            if any(word in text for word in BAIT_WORDS):
+                bait_hits.append(text)
 
-    return clean[:8]
+    def unique(items):
+        out = []
+        for x in items:
+            if x not in out:
+                out.append(x)
+        return out
 
-def make_report(hits):
+    return unique(blue_hits)[:8], unique(bait_hits)[:8]
+
+def make_report(blue_hits, bait_hits):
     now = datetime.now().strftime("%m/%d %H:%M")
 
-    if not hits:
+    if blue_hits:
+        body = "\n".join([f"・{h}" for h in blue_hits])
         return f"""【ポポパパ釣果AI】
 更新：{now}
 
-青物気配なし
+青物気配あり🔥
+
+直近青物：
+{body}
 
 結論：
-今日は様子見や
-ブリやで（来てへん）"""
+ワンチャンあり
+ブリやで🔥"""
 
-    body = "\n".join([f"・{h}" for h in hits])
+    if bait_hits:
+        body = "\n".join([f"・{h}" for h in bait_hits])
+        return f"""【ポポパパ釣果AI】
+更新：{now}
+
+青物気配：なし
+ベイト・参考釣果：あり
+
+参考情報：
+{body}
+
+結論：
+青物はまだ弱いけど、ベイト次第でワンチャン
+ブリやで（まだ来てへん）"""
 
     return f"""【ポポパパ釣果AI】
 更新：{now}
 
-直近気配：
-{body}
+青物気配なし
+ベイト気配も薄い
 
 結論：
-ワンチャンある
-ブリやで🔥"""
+今日は様子見や
+ブリやで（来てへん）"""
 
 def send_line(text):
     url = "https://api.line.me/v2/bot/message/broadcast"
@@ -108,9 +135,10 @@ def send_line(text):
 
 def main():
     print("ポポパパ釣果AI 起動")
-    hits = extract()
-    print("取得件数:", len(hits))
-    report = make_report(hits)
+    blue_hits, bait_hits = extract()
+    print("青物件数:", len(blue_hits))
+    print("参考件数:", len(bait_hits))
+    report = make_report(blue_hits, bait_hits)
     print(report)
     send_line(report)
 
