@@ -1,4 +1,3 @@
-print("VERSION_20260426_BAIT_TEST")
 import requests
 import os
 import re
@@ -12,35 +11,40 @@ URLS = [
     "https://fishingmax.co.jp/fishingpost/",
 ]
 
+# 🎯 狙い（青物）
 BLUE_WORDS = [
-    "サゴシ", "サワラ", "ブリ", "メジロ", "ハマチ", "ツバス",
-    "ナブラ", "なぶら", "入れ食い"
+    "サゴシ","サワラ","ブリ","メジロ","ハマチ","ツバス","ナブラ","入れ食い"
 ]
 
+# 🎯 ベイト
 BAIT_WORDS = [
-    "アジ", "サバ", "イワシ", "コノシロ", "ベイト", "小魚"
+    "アジ","サバ","イワシ","コノシロ"
 ]
 
+# ❌ 消す
 BAD_WORDS = [
-    "入荷", "新商品", "商品", "お知らせ", "セール", "イベント",
-    "マルキュー", "エサコーナー", "営業時間", "スタッフ募集",
-    "<a", "<h2", "href=", "class="
+    "入荷","商品","お知らせ","セール","イベント",
+    "スタッフ","ボート","沖","船",
+    "須磨","汐見","助松","公園",
+    "お持ち込み","チャレ","・・・"
 ]
 
-def clean_text(text):
+# 🎯 エリア絞り（ここ超重要）
+TARGET_AREAS = [
+    "貝塚","和歌山","マリーナ","田ノ浦","雑賀崎","紀ノ川","水軒"
+]
+
+def clean(text):
     text = re.sub(r"<[^>]+>", "", text)
-    text = text.replace("&nbsp;", " ")
-    text = text.replace("&amp;", "&")
-    return text.strip()
+    text = text.replace("\n", "")
+    text = text.strip()
+    return text
 
 def fetch(url):
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=15)
-        r.raise_for_status()
+        r = requests.get(url, timeout=10)
         return r.text
-    except Exception as e:
-        print("FETCH ERROR:", url, e)
+    except:
         return ""
 
 def extract():
@@ -49,99 +53,98 @@ def extract():
 
     for url in URLS:
         html = fetch(url)
-        if not html:
-            continue
-
         soup = BeautifulSoup(html, "html.parser")
 
-        for tag in soup.find_all(["a", "h1", "h2", "h3", "p"]):
-            text = clean_text(tag.get_text(" ", strip=True))
+        for tag in soup.find_all(["a","h1","h2","h3","p"]):
+            text = clean(tag.get_text())
 
-            if len(text) < 8 or len(text) > 140:
+            if len(text) < 10 or len(text) > 120:
                 continue
 
-            if any(bad in text for bad in BAD_WORDS):
+            # ❌ ノイズ削除
+            if any(b in text for b in BAD_WORDS):
                 continue
 
-            if any(word in text for word in BLUE_WORDS):
+            # 🎯 エリア限定
+            if not any(area in text for area in TARGET_AREAS):
+                continue
+
+            # 🎯 青物優先
+            if any(w in text for w in BLUE_WORDS):
                 blue_hits.append(text)
                 continue
 
-            if any(word in text for word in BAIT_WORDS):
+            # 🎯 ベイト
+            if any(w in text for w in BAIT_WORDS):
                 bait_hits.append(text)
 
-    def unique(items):
+    # 重複削除
+    def uniq(lst):
         out = []
-        for x in items:
+        for x in lst:
             if x not in out:
                 out.append(x)
         return out
 
-    return unique(blue_hits)[:8], unique(bait_hits)[:8]
+    return uniq(blue_hits)[:5], uniq(bait_hits)[:5]
 
-def make_report(blue_hits, bait_hits):
+def short(text):
+    return text[:45] + "…" if len(text) > 45 else text
+
+def make_report(blue, bait):
     now = datetime.now().strftime("%m/%d %H:%M")
 
-    if blue_hits:
-        body = "\n".join([f"・{h}" for h in blue_hits])
+    if blue:
+        body = "\n".join([f"・{short(x)}" for x in blue])
         return f"""【ポポパパ釣果AI】
 更新：{now}
 
-青物気配あり🔥
+🔥青物気配あり🔥
 
-直近青物：
 {body}
 
 結論：
-ワンチャンあり
+今行く価値あり
 ブリやで🔥"""
 
-    if bait_hits:
-        body = "\n".join([f"・{h}" for h in bait_hits])
+    if bait:
+        body = "\n".join([f"・{short(x)}" for x in bait])
         return f"""【ポポパパ釣果AI】
 更新：{now}
 
 青物気配：なし
-ベイト・参考釣果：あり
+ベイトあり
 
-参考情報：
 {body}
 
 結論：
-青物はまだ弱いけど、ベイト次第でワンチャン
+ベイト付き待ちでワンチャン
 ブリやで（まだ来てへん）"""
 
     return f"""【ポポパパ釣果AI】
 更新：{now}
 
-青物気配なし
-ベイト気配も薄い
+気配なし
 
 結論：
 今日は様子見や
 ブリやで（来てへん）"""
 
-def send_line(text):
-    url = "https://api.line.me/v2/bot/message/broadcast"
-    headers = {
-        "Authorization": f"Bearer {LINE_TOKEN}",
-        "Content-Type": "application/json",
-    }
-    data = {
-        "messages": [{"type": "text", "text": text[:4500]}]
-    }
-
-    r = requests.post(url, headers=headers, json=data, timeout=30)
-    print("送信結果:", r.status_code, r.text)
+def send(msg):
+    requests.post(
+        "https://api.line.me/v2/bot/message/broadcast",
+        headers={
+            "Authorization": f"Bearer {LINE_TOKEN}",
+            "Content-Type": "application/json",
+        },
+        json={"messages":[{"type":"text","text":msg}]}
+    )
 
 def main():
-    print("ポポパパ釣果AI 起動")
-    blue_hits, bait_hits = extract()
-    print("青物件数:", len(blue_hits))
-    print("参考件数:", len(bait_hits))
-    report = make_report(blue_hits, bait_hits)
-    print(report)
-    send_line(report)
+    blue, bait = extract()
+    msg = make_report(blue, bait)
+    print(msg)
+    send(msg)
 
 if __name__ == "__main__":
     main()
