@@ -1,7 +1,7 @@
 import requests
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from bs4 import BeautifulSoup
 
 LINE_TOKEN = os.getenv("POPO_LINE_TOKEN")
@@ -51,17 +51,6 @@ def uniq(items):
 def short(text):
     return text[:55] + "…" if len(text) > 55 else text
 
-def is_recent(text):
-    today = datetime.now()
-    yesterday = today - timedelta(days=1)
-
-    t1 = today.strftime("%Y/%m/%d")
-    t2 = yesterday.strftime("%Y/%m/%d")
-    t3 = today.strftime("%m/%d")
-    t4 = yesterday.strftime("%m/%d")
-
-    return any(d in text for d in [t1, t2, t3, t4])
-
 def extract():
     blue = []
     bait_good_area = []
@@ -80,26 +69,30 @@ def extract():
             if any(bad in text for bad in BAD_WORDS):
                 continue
 
-            # 🔥 日付フィルター
-            if not is_recent(text):
-                continue
-
             area = any(a in text for a in GOOD_AREAS)
             is_blue = any(w in text for w in BLUE_WORDS)
             is_bait = any(w in text for w in BAIT_WORDS)
 
+            # 青物（優先）
             if is_blue:
                 blue.append(text)
                 continue
 
+            # ベイト（対象エリア）
             if is_bait and area:
                 bait_good_area.append(text)
                 continue
 
+            # 空回避用ベイト
             if is_bait:
                 bait_any.append(text)
 
-    return uniq(blue)[:5], uniq(bait_good_area)[:4], uniq(bait_any)[:3]
+    # 🔥 上から最新順だけ使う（ここがポイント）
+    blue = uniq(blue)[:3]
+    bait_good_area = uniq(bait_good_area)[:3]
+    bait_any = uniq(bait_any)[:2]
+
+    return blue, bait_good_area, bait_any
 
 def make_report(blue, bait_good_area, bait_any):
     now = datetime.now().strftime("%m/%d %H:%M")
@@ -128,7 +121,7 @@ def make_report(blue, bait_good_area, bait_any):
 {body}
 
 結論：
-青物はまだ弱いけど、ベイト付き待ちでワンチャン
+ベイト付き待ちでワンチャン
 ブリやで（まだ来てへん）"""
 
     if bait_any:
@@ -142,7 +135,7 @@ def make_report(blue, bait_good_area, bait_any):
 {body}
 
 結論：
-対象エリア外も混じるけど完全無風ではない
+完全無風ではない
 ブリやで（まだ遠い）"""
 
     return f"""【ポポパパ釣果AI】
