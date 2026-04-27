@@ -1,10 +1,10 @@
 import requests
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 
-VERSION = "FILTER_VERSION_20260426_0938"
+VERSION = "FINAL_STRICT_20260427_0235"
 LINE_TOKEN = os.getenv("POPO_LINE_TOKEN")
 
 URLS = [
@@ -13,8 +13,7 @@ URLS = [
 ]
 
 BLUE_WORDS = [
-    "サゴシ", "サワラ", "ブリ", "メジロ", "ハマチ", "ツバス",
-    "ナブラ", "入れ食い", 
+    "サゴシ", "サワラ", "ブリ", "メジロ", "ハマチ", "ツバス"
 ]
 
 BAIT_WORDS = [
@@ -22,18 +21,18 @@ BAIT_WORDS = [
 ]
 
 GOOD_AREAS = [
-    "貝塚", "貝塚人工島", "和歌山", "マリーナ", "田ノ浦",
-    "雑賀崎", "紀ノ川", "水軒", "加太", "衣奈", "中紀"
+    "貝塚", "貝塚人工島", "和歌山", "マリーナ", "マリーナシティ",
+    "田ノ浦", "雑賀崎", "紀ノ川", "水軒", "加太", "衣奈", "中紀"
 ]
 
 BAD_WORDS = [
+    "釣果情報", "海釣り 釣果情報", "川釣り 釣果情報",
+    "ノマセ釣果", "マリーナシティにてノマセ釣果",
     "入荷", "商品", "お知らせ", "セール", "イベント", "営業時間",
     "スタッフ募集", "アジング・メバリング", "ロックフィッシュ",
     "南芦屋浜", "須磨", "六甲", "船", "ボート", "沖", "イカダ",
-    "チャレ", "・・・", "..."
+    "チャレ", "・・・", "...", "お持ち込み"
 ]
-
-
 
 def clean(text):
     text = re.sub(r"<[^>]+>", "", text)
@@ -48,7 +47,7 @@ def fetch(url):
         r = requests.get(url, headers=headers, timeout=15)
         return r.text
     except Exception as e:
-        print("FETCH ERROR:", e)
+        print("FETCH ERROR:", url, e)
         return ""
 
 def uniq(items):
@@ -61,17 +60,27 @@ def uniq(items):
 def short(text):
     return text[:60] + "…" if len(text) > 60 else text
 
-def is_bad(text):
-    if text in BAD_EXACT:
-        return True
-    if any(bad in text for bad in BAD_WORDS):
-        return True
+def has_old_date(text):
+    # 2026/04/03 みたいな日付があれば、今日・昨日以外は古い扱い
+    dates = re.findall(r"20\d{2}/\d{2}/\d{2}", text)
+    if not dates:
+        return False
+
+    today = datetime.now()
+    ok_dates = {
+        today.strftime("%Y/%m/%d"),
+        (today - timedelta(days=1)).strftime("%Y/%m/%d"),
+    }
+
+    for d in dates:
+        if d not in ok_dates:
+            return True
+
     return False
 
 def extract():
     blue = []
-    bait_good = []
-    bait_any = []
+    bait = []
 
     for url in URLS:
         html = fetch(url)
@@ -80,30 +89,31 @@ def extract():
         for tag in soup.find_all(["a", "h1", "h2", "h3", "p"]):
             text = clean(tag.get_text(" ", strip=True))
 
-            if len(text) < 10 or len(text) > 160:
+            if len(text) < 10 or len(text) > 180:
                 continue
 
-            if is_bad(text):
+            if any(bad in text for bad in BAD_WORDS):
+                continue
+
+            if has_old_date(text):
                 continue
 
             area = any(a in text for a in GOOD_AREAS)
             is_blue = any(w in text for w in BLUE_WORDS)
             is_bait = any(w in text for w in BAIT_WORDS)
 
-            if is_blue:
+            # 青物は「魚名あり」だけ。本物の魚名が無いノマセ・釣果は拾わない。
+            if is_blue and area:
                 blue.append(text)
                 continue
 
-            if is_bait and area:
-                bait_good.append(text)
-                continue
-
+            # ベイトは空っぽ回避用
             if is_bait:
-                bait_any.append(text)
+                bait.append(text)
 
-    return uniq(blue)[:3], uniq(bait_good)[:3], uniq(bait_any)[:2]
+    return uniq(blue)[:3], uniq(bait)[:3]
 
-def make_report(blue, bait_good, bait_any):
+def make_report(blue, bait):
     now = datetime.now().strftime("%m/%d %H:%M")
 
     if blue:
@@ -120,23 +130,8 @@ def make_report(blue, bait_good, bait_any):
 朝マズメ勝負
 ブリやで🔥"""
 
-    if bait_good:
-        body = "\n".join([f"・{short(x)}" for x in bait_good])
-        return f"""【ポポパパ釣果AI】
-{VERSION}
-更新：{now}
-
-青物気配：なし
-ベイトあり
-
-{body}
-
-結論：
-ベイト付き待ちでワンチャン
-ブリやで（まだ来てへん）"""
-
-    if bait_any:
-        body = "\n".join([f"・{short(x)}" for x in bait_any])
+    if bait:
+        body = "\n".join([f"・{short(x)}" for x in bait])
         return f"""【ポポパパ釣果AI】
 {VERSION}
 更新：{now}
@@ -147,14 +142,15 @@ def make_report(blue, bait_good, bait_any):
 {body}
 
 結論：
-完全無風ではない
+完全無風ではないけど青物は弱い
 ブリやで（まだ遠い）"""
 
     return f"""【ポポパパ釣果AI】
 {VERSION}
 更新：{now}
 
-気配なし
+青物気配なし
+参考ベイトも薄い
 
 結論：
 今日は様子見や
@@ -173,15 +169,13 @@ def send(msg):
     print("送信結果:", r.status_code, r.text)
 
 def main():
-    print(VERSION)
-    blue, bait_good, bait_any = extract()
+    blue, bait = extract()
+    print("VERSION:", VERSION)
     print("青物:", blue)
-    print("対象ベイト:", bait_good)
-    print("参考ベイト:", bait_any)
-    msg = make_report(blue, bait_good, bait_any)
+    print("ベイト:", bait)
+    msg = make_report(blue, bait)
     print(msg)
     send(msg)
-if is_blue and not area:
-    continue
+
 if __name__ == "__main__":
     main()
