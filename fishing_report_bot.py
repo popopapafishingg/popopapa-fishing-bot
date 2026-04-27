@@ -27,18 +27,13 @@ GOOD_AREAS = [
 ]
 
 BAD_WORDS = [
-    "釣果情報", "海釣り 釣果情報", "川釣り 釣果情報",
     "入荷", "商品", "お知らせ", "セール", "イベント", "営業時間",
     "スタッフ募集", "アジング・メバリング", "ロックフィッシュ",
     "南芦屋浜", "須磨", "六甲", "船", "ボート", "沖", "イカダ",
     "チャレ", "・・・", "..."
 ]
 
-BAD_EXACT = [
-    "釣果情報（海釣り）",
-    "海釣り 釣果情報",
-    "川釣り 釣果情報",
-]
+
 
 def clean(text):
     text = re.sub(r"<[^>]+>", "", text)
@@ -186,6 +181,7 @@ def main():
     msg = make_report(blue, bait_good, bait_any)
     print(msg)
     send(msg)
-
+if is_blue and not area:
+    continue
 if __name__ == "__main__":
     main()
