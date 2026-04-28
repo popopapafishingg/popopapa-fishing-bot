@@ -17,7 +17,6 @@ URLS = [
     "https://f-marunishi.com/fishing/fishingcat/sea",
     "https://fishingmax.co.jp/",
 ]
-
 # キーワード類
 BLUE_WORDS = [
     "ブリ",
