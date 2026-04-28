@@ -321,13 +321,26 @@ def main():
 
     blue, bait = extract()
 
-    # メインレポート
-    report = make_report(blue, bait)
+    # メインレポート（ここを try/except で守る）
+    try:
+        report = make_report(blue, bait)
+    except Exception as e:
+        print(f"[WARN] ChatGPTレポート生成に失敗しました: {e}")
+        blue_count = len(blue)
+        bait_count = len(bait)
+        # 簡易バックアップメッセージ
+        report = (
+            "ポポパパ釣果AI 簡易レポート\n"
+            f"青物ヒット件数: {blue_count}\n"
+            f"ベイトヒット件数: {bait_count}\n"
+            "※AIレポート生成に失敗したため、件数のみのお知らせです。"
+        )
+
     print("----- 生成されたレポート -----")
     print(report)
     print("----- ここまで -----")
 
-    # 自己評価
+    # 自己評価も同様に守る
     try:
         self_review_prompt = build_self_review_prompt(report)
         self_review = ask_chatgpt(self_review_prompt)
@@ -342,7 +355,3 @@ def main():
     print("----- ここまで -----")
 
     send(full_message)
-
-
-if __name__ == "__main__":
-    main()
