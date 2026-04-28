@@ -342,13 +342,21 @@ def send(msg: str):
     headers = {"Authorization": f"Bearer {LINE_TOKEN}"}
     data = {"message": msg}
 
-    try:
-        res = requests.post(url, headers=headers, data=data, timeout=10)
-        res.raise_for_status()
-        print("[INFO] LINE 送信成功")
-    except Exception as e:
-        print(f"[ERROR] LINE 送信失敗: {e}")
-        print(msg)
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            res = requests.post(url, headers=headers, data=data, timeout=10)
+            res.raise_for_status()
+            print(f"[INFO] LINE 送信成功 (試行 {attempt} 回目)")
+            return
+        except Exception as e:
+            print(f"[ERROR] LINE 送信失敗 (試行 {attempt} 回目): {e}")
+            if attempt < max_retries:
+                time.sleep(5)  # 5秒待ってから再トライ
+            else:
+                print("[ERROR] 再試行回数を超えたため、今回のメッセージ送信をあきらめます。")
+                print("----- 送信しようとした内容 -----")
+                print(msg)
 
 
 def main():
