@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 
-VERSION = "AREA_FILTER_FINAL_20260427_0315"
+VERSION = "AREA_FILTER_SEND_CHECK_20260427"
 LINE_TOKEN = os.getenv("POPO_LINE_TOKEN")
 
 URLS = [
@@ -12,22 +12,12 @@ URLS = [
     "https://fishingmax.co.jp/fishingpost/",
 ]
 
-# 🎯 青物（魚名だけ）
-BLUE_WORDS = [
-    "サゴシ", "サワラ", "ブリ", "メジロ", "ハマチ", "ツバス"
-]
+BLUE_WORDS = ["サゴシ", "サワラ", "ブリ", "メジロ", "ハマチ", "ツバス"]
+BAIT_WORDS = ["アジ", "マアジ", "サバ", "イワシ", "カタクチ", "コノシロ", "サヨリ"]
 
-# 🎯 ベイト
-BAIT_WORDS = [
-    "アジ", "マアジ", "サバ", "イワシ", "カタクチ", "コノシロ", "サヨリ"
-]
-
-# 🎯 ここが最重要（この中しか拾わない）
 GOOD_AREAS = [
-    "貝塚", "貝塚人工島",
-    "和歌山", "マリーナ", "マリーナシティ",
-    "田ノ浦", "雑賀崎", "紀ノ川", "水軒",
-    "加太", "衣奈", "中紀"
+    "貝塚", "貝塚人工島", "和歌山", "マリーナ", "マリーナシティ",
+    "田ノ浦", "雑賀崎", "紀ノ川", "水軒", "加太", "衣奈", "中紀"
 ]
 
 def clean(text):
@@ -40,20 +30,10 @@ def clean(text):
 def fetch(url):
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=15)
-        return r.text
-    except:
+        return requests.get(url, headers=headers, timeout=15).text
+    except Exception as e:
+        print("FETCH ERROR:", url, e)
         return ""
-
-def uniq(items):
-    out = []
-    for x in items:
-        if x not in out:
-            out.append(x)
-    return out
-
-def short(text):
-    return text[:60] + "…" if len(text) > 60 else text
 
 def has_old_date(text):
     dates = re.findall(r"20\d{2}/\d{2}/\d{2}", text)
@@ -65,42 +45,42 @@ def has_old_date(text):
         today.strftime("%Y/%m/%d"),
         (today - timedelta(days=1)).strftime("%Y/%m/%d"),
     }
+    return any(d not in ok for d in dates)
 
-    for d in dates:
-        if d not in ok:
-            return True
-    return False
+def uniq(items):
+    out = []
+    for x in items:
+        if x not in out:
+            out.append(x)
+    return out
+
+def short(text):
+    return text[:60] + "…" if len(text) > 60 else text
 
 def extract():
     blue = []
     bait = []
 
     for url in URLS:
-        html = fetch(url)
-        soup = BeautifulSoup(html, "html.parser")
+        soup = BeautifulSoup(fetch(url), "html.parser")
 
-        for tag in soup.find_all(["a","h1","h2","h3","p"]):
+        for tag in soup.find_all(["a", "h1", "h2", "h3", "p"]):
             text = clean(tag.get_text(" ", strip=True))
 
             if len(text) < 12 or len(text) > 180:
                 continue
 
-            # 🔥 エリア限定（最重要）
             if not any(a in text for a in GOOD_AREAS):
                 continue
 
-            # 🔥 古い日付カット
             if has_old_date(text):
                 continue
 
-            is_blue = any(w in text for w in BLUE_WORDS)
-            is_bait = any(w in text for w in BAIT_WORDS)
-
-            if is_blue:
+            if any(w in text for w in BLUE_WORDS):
                 blue.append(text)
                 continue
 
-            if is_bait:
+            if any(w in text for w in BAIT_WORDS):
                 bait.append(text)
 
     return uniq(blue)[:3], uniq(bait)[:3]
@@ -148,17 +128,26 @@ def make_report(blue, bait):
 ブリやで（来てへん）"""
 
 def send(msg):
-    requests.post(
+    print("TOKENある？", bool(LINE_TOKEN))
+
+    r = requests.post(
         "https://api.line.me/v2/bot/message/broadcast",
         headers={
             "Authorization": f"Bearer {LINE_TOKEN}",
             "Content-Type": "application/json",
         },
-        json={"messages":[{"type":"text","text":msg}]}
+        json={"messages": [{"type": "text", "text": msg[:4500]}]},
+        timeout=30,
     )
 
+    print("送信結果:", r.status_code, r.text)
+
 def main():
+    print("起動:", VERSION)
     blue, bait = extract()
+    print("青物件数:", len(blue))
+    print("ベイト件数:", len(bait))
+
     msg = make_report(blue, bait)
     print(msg)
     send(msg)
