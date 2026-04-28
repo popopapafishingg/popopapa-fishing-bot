@@ -4,16 +4,14 @@ from bs4 import BeautifulSoup
 import time
 import re
 
-# バージョン表示用（任意）
-VERSION = "BALANCE_STABLE_20260428_v2"
+VERSION = "ALLSPOT_20260428_v1"
 
-# 環境変数からキーとトークンを取得
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 LINE_TOKEN = os.environ.get("POPO_LINE_TOKEN")
 
 
 # =========================
-#  Webスクレイピング周り
+# 共通: HTML取得
 # =========================
 
 def fetch_html(url: str) -> str:
@@ -24,59 +22,131 @@ def fetch_html(url: str) -> str:
     return res.text
 
 
-def extract_from_marunishi(html: str) -> list[str]:
+# =========================
+# 各サイトごとのざっくり抽出
+# =========================
+
+KEYWORDS_BASE = ["釣果", "青物", "ブリ", "メジロ", "ハマチ",
+                 "サゴシ", "サワラ", "イワシ", "アジ", "サバ", "ベイト"]
+
+
+def _generic_extract(html: str, name: str) -> list[str]:
+    """共通ロジック: 釣果っぽいブロックをざっくり拾う"""
     soup = BeautifulSoup(html, "html.parser")
     texts: list[str] = []
 
-    for article in soup.find_all(["article", "li", "div", "section"]):
-        text = article.get_text(separator=" ", strip=True)
+    for tag in soup.find_all(["article", "li", "div", "section"]):
+        text = tag.get_text(separator=" ", strip=True)
         if not text:
             continue
 
-        if any(k in text for k in ["釣果", "青物", "ブリ", "メジロ", "ハマチ", "サゴシ", "サワラ", "イワシ", "アジ", "サバ", "ベイト"]):
-            texts.append(text)
+        if any(k in text for k in KEYWORDS_BASE):
+            # サイト名を頭に付けて、どこ由来かわかるようにしておく
+            texts.append(f"[{name}] {text}")
 
     return texts
+
+
+def extract_from_marunishi(html: str) -> list[str]:
+    return _generic_extract(html, "丸西")
 
 
 def extract_from_fishingmax(html: str) -> list[str]:
-    soup = BeautifulSoup(html, "html.parser")
-    texts: list[str] = []
+    return _generic_extract(html, "FMAX")
 
-    for article in soup.find_all(["article", "li", "div", "section"]):
-        text = article.get_text(separator=" ", strip=True)
-        if not text:
-            continue
 
-        if any(k in text for k in ["釣果", "青物", "ブリ", "メジロ", "ハマチ", "サゴシ", "サワラ", "イワシ", "アジ", "サバ", "ベイト"]):
-            texts.append(text)
+def extract_from_suiken(html: str) -> list[str]:
+    # 水軒渡船
+    return _generic_extract(html, "水軒渡船")
 
-    return texts
+
+def extract_from_kishiwada(html: str) -> list[str]:
+    # 岸和田渡船
+    return _generic_extract(html, "岸和田渡船")
+
+
+def extract_from_mukogawa(html: str) -> list[str]:
+    # 武庫川渡船
+    return _generic_extract(html, "武庫川渡船")
+
+
+def extract_from_yume(html: str) -> list[str]:
+    # 夢フィッシング（ブログ形式）
+    return _generic_extract(html, "夢フィッシング")
+
+
+def extract_from_izumisano(html: str) -> list[str]:
+    # 泉佐野一文字（アメブロ）
+    return _generic_extract(html, "泉佐野一文字")
+
+
+# =========================
+# 集計: 青物 / ベイト
+# =========================
+
+BLUE_KEYWORDS = ["青物", "ブリ", "メジロ", "ハマチ", "サゴシ", "サワラ", "メジロクラス", "ブリクラス"]
+BAIT_KEYWORDS = ["イワシ", "アジ", "サバ", "豆アジ", "小アジ", "ベイト", "小魚"]
 
 
 def extract() -> tuple[list[str], list[str]]:
+    all_texts: list[str] = []
+
     # 丸西
-    marunishi_url = "https://f-marunishi.com/fishing/fishingcat/sea"
-    marunishi_html = fetch_html(marunishi_url)
-    marunishi_texts = extract_from_marunishi(marunishi_html)
+    try:
+        marunishi_html = fetch_html("https://f-marunishi.com/fishing/fishingcat/sea")
+        all_texts.extend(extract_from_marunishi(marunishi_html))
+    except Exception as e:
+        print(f"[WARN] 丸西の取得に失敗: {e}")
 
     # フィッシングマックス
-    fmax_url = "https://fishingmax.co.jp/"
-    fmax_html = fetch_html(fmax_url)
-    fmax_texts = extract_from_fishingmax(fmax_html)
+    try:
+        fmax_html = fetch_html("https://fishingmax.co.jp/")
+        all_texts.extend(extract_from_fishingmax(fmax_html))
+    except Exception as e:
+        print(f"[WARN] FMAXの取得に失敗: {e}")
 
-    all_texts = marunishi_texts + fmax_texts
+    # 水軒渡船
+    try:
+        suiken_html = fetch_html("http://wakayama-suikentosen.com/tiyouka.html")
+        all_texts.extend(extract_from_suiken(suiken_html))
+    except Exception as e:
+        print(f"[WARN] 水軒渡船の取得に失敗: {e}")
 
-    blue_keywords = ["青物", "ブリ", "メジロ", "ハマチ", "サゴシ", "サワラ", "メジロクラス", "ブリクラス"]
-    bait_keywords = ["イワシ", "アジ", "サバ", "豆アジ", "小アジ", "ベイト", "小魚"]
+    # 岸和田渡船
+    try:
+        kishiwada_html = fetch_html("http://kishiwadatosen.com/result/")
+        all_texts.extend(extract_from_kishiwada(kishiwada_html))
+    except Exception as e:
+        print(f"[WARN] 岸和田渡船の取得に失敗: {e}")
+
+    # 武庫川渡船
+    try:
+        mukogawa_html = fetch_html("https://www.amagyo.com/choukax.php")
+        all_texts.extend(extract_from_mukogawa(mukogawa_html))
+    except Exception as e:
+        print(f"[WARN] 武庫川渡船の取得に失敗: {e}")
+
+    # 夢フィッシング
+    try:
+        yume_html = fetch_html("http://blog.livedoor.jp/yumefishing/")
+        all_texts.extend(extract_from_yume(yume_html))
+    except Exception as e:
+        print(f"[WARN] 夢フィッシングの取得に失敗: {e}")
+
+    # 泉佐野一文字
+    try:
+        izumi_html = fetch_html("https://ameblo.jp/izumisanoitimonji/")
+        all_texts.extend(extract_from_izumisano(izumi_html))
+    except Exception as e:
+        print(f"[WARN] 泉佐野一文字の取得に失敗: {e}")
 
     blue_hits: list[str] = []
     bait_hits: list[str] = []
 
     for t in all_texts:
-        if any(k in t for k in blue_keywords):
+        if any(k in t for k in BLUE_KEYWORDS):
             blue_hits.append(t)
-        if any(k in t for k in bait_keywords):
+        if any(k in t for k in BAIT_KEYWORDS):
             bait_hits.append(t)
 
     print(f"[INFO] 青物件数: {len(blue_hits)}")
@@ -86,7 +156,7 @@ def extract() -> tuple[list[str], list[str]]:
 
 
 # =========================
-#  OpenAI まわり
+# OpenAI まわり
 # =========================
 
 def ask_chatgpt(prompt: str) -> str:
@@ -120,19 +190,41 @@ def make_report(blue: list[str], bait: list[str]) -> str:
     blue_count = len(blue)
     bait_count = len(bait)
 
+    # どのエリアで出ているか、ざっくりだけ列挙（長くなりすぎないように先頭数件）
+    blue_sample = "\n".join(blue[:3])
+    bait_sample = "\n".join(bait[:3])
+
     prompt = f"""
 あなたはポポパパ専属の釣果アドバイザーAIです。
 
+ポポパパの行動範囲に近い次の釣り場から、青物とベイトの気配をざっくり集計しました。
+
+対象エリア:
+- 丸西（南港方面）
+- フィッシングマックス（阪神間）
+- 水軒渡船
+- 岸和田渡船
+- 武庫川渡船
+- 夢フィッシング（尼崎方面）
+- 泉佐野一文字
+
+集計結果:
 - 青物に関する釣果情報のヒット件数: {blue_count} 件
 - ベイト（イワシ・アジ・サバなど）に関するヒット件数: {bait_count} 件
 
-これらの件数から、次のことを行ってください。
+青物ヒット例（最大3件まで抜粋）:
+{blue_sample}
+
+ベイトヒット例（最大3件まで抜粋）:
+{bait_sample}
+
+これらの情報から、次のことを行ってください。
 
 1. 今日の青物の「総合評価」を、10点満点で1点刻みでつけてください。
 2. 「ショア青物狙いのポポパパ」向けに、
    - 今日の雰囲気（良さそうか、渋そうか）
    - 期待できる時間帯や潮のイメージ
-   - ポイント選びのざっくりした考え方（テトラ帯、沖向き、内向き など）
+   - ポイント選びのざっくりした考え方（テトラ帯、沖向き、内向き、一文字、沖堤など）
    を分かりやすく短めにまとめてください。
 3. 数字が少ない（もしくはゼロ）場合でも、
    - 「数字が少ない＝絶対釣れない」ではないことを前提に、
@@ -196,7 +288,7 @@ def build_self_review_prompt(report: str) -> str:
 
 
 # =========================
-#  LINE送信まわり
+# LINE送信
 # =========================
 
 def send(msg: str):
@@ -211,12 +303,9 @@ def send(msg: str):
 
     try:
         res = requests.post(url, headers=headers, data=data, timeout=10)
-        # ここが今まで問題になっていた行：
-        # res.raise_for_status() をそのまま呼ぶと例外で落ちるので try の中に置く
         res.raise_for_status()
         print("[INFO] LINE 送信成功")
     except requests.exceptions.RequestException as e:
-        # ここで例外をキャッチしてログを出し、スクリプトを落とさない
         print(f"[ERROR] LINE 送信に失敗しました: {e}")
         print("----- 本来送る予定だったメッセージ -----")
         print(msg)
@@ -224,7 +313,7 @@ def send(msg: str):
 
 
 # =========================
-#  エントリポイント
+# メイン
 # =========================
 
 def main():
@@ -232,21 +321,21 @@ def main():
 
     blue, bait = extract()
 
-    # メインのレポート生成
-    msg = make_report(blue, bait)
+    # メインレポート
+    report = make_report(blue, bait)
     print("----- 生成されたレポート -----")
-    print(msg)
+    print(report)
     print("----- ここまで -----")
 
-    # 自己評価も1回だけ追加で生成
+    # 自己評価
     try:
-        self_review_prompt = build_self_review_prompt(msg)
+        self_review_prompt = build_self_review_prompt(report)
         self_review = ask_chatgpt(self_review_prompt)
     except Exception as e:
         print(f"[WARN] 自己評価の生成に失敗しました: {e}")
         self_review = "自己評価の生成に失敗しました。"
 
-    full_message = f"{msg}\n\n――――――――――\n自己評価メモ\n{self_review}"
+    full_message = f"{report}\n\n――――――――――\n自己評価メモ\n{self_review}"
 
     print("----- LINEに送る最終メッセージ -----")
     print(full_message)
