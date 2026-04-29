@@ -363,16 +363,50 @@ def build_self_review_prompt(report: str) -> str:
 # LINE送信
 # =========================
 
-def send(msg):
-    r = requests.post(
-        "https://api.line.me/v2/bot/message/broadcast",
-        headers={
-            "Authorization": f"Bearer {LINE_TOKEN}",
-            "Content-Type": "application/json",
-        },
-        json={"messages":[{"type":"text","text":msg}]}
-    )
-    print("送信結果:", r.status_code, r.text)
+import json
+import os
+import requests
+
+LINE_TOKEN = os.environ.get("POPO_LINE_TOKEN")
+
+
+def send(msg: str):
+    """
+    LINE Messaging API のブロードキャストで送信する。
+    Notify ではなく、v2/bot/message/broadcast を使用。
+    """
+    if not LINE_TOKEN:
+        print("[WARN] LINE トークンが設定されていません。標準出力のみ行います。")
+        print("----- LINEメッセージ（トークン未設定） -----")
+        print(msg)
+        print("----- ここまで -----")
+        return
+
+    url = "https://api.line.me/v2/bot/message/broadcast"
+    headers = {
+        "Authorization": f"Bearer {LINE_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    body = {
+        "messages": [
+            {
+                "type": "text",
+                "text": msg,
+            }
+        ]
+    }
+
+    try:
+        print("[INFO] LINE Broadcast 送信開始")
+        res = requests.post(url, headers=headers, data=json.dumps(body), timeout=15)
+        print(f"[INFO] LINE Broadcast status: {res.status_code}")
+        res.raise_for_status()
+        print("[INFO] LINE 送信成功")
+    except requests.exceptions.RequestException as e:
+        print(f"[ERROR] LINE 送信に失敗しました: {e}")
+        print("----- 本来送る予定だったメッセージ（保存用） -----")
+        print(msg)
+        print("----- ここまで -----")
 
 
 # =========================
