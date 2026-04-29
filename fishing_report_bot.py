@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import time
 import re
 
-VERSION = "ALLSPOT_20260428_v1"
+VERSION = "POPOPAPA_SHORT_FINAL_20260428"
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 LINE_TOKEN = os.environ.get("POPO_LINE_TOKEN")
