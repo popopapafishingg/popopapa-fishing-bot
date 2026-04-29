@@ -363,29 +363,18 @@ def build_self_review_prompt(report: str) -> str:
 # LINE送信
 # =========================
 
-def send(msg: str):
-    """
-    LINE Notify へ送信する。失敗してもクラッシュさせない。
-    """
-    if not LINE_TOKEN:
-        print("LINE トークンが設定されていません。標準出力のみ行います。")
-        print(msg)
-        return
+def send(msg):
+    print("送信内容:", msg[:200])
 
     url = "https://notify-api.line.me/api/notify"
     headers = {"Authorization": f"Bearer {LINE_TOKEN}"}
-    data = {"message": msg}
+    data = {"message": msg[:900]}  # ←長さ制限（重要）
 
     try:
-        res = requests.post(url, headers=headers, data=data, timeout=15)
-        print(f"[INFO] LINE Notify status: {res.status_code}")
-        res.raise_for_status()
-        print("[INFO] LINE 送信成功")
-    except requests.exceptions.RequestException as e:
-        print(f"[ERROR] LINE 送信に失敗しました: {e}")
-        print("----- 本来送る予定だったメッセージ -----")
-        print(msg)
-        print("----- ここまで -----")
+        res = requests.post(url, headers=headers, data=data, timeout=10)
+        print("送信結果:", res.status_code, res.text)
+    except Exception as e:
+        print("送信失敗:", e)
 
 
 # =========================
