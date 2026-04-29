@@ -363,41 +363,16 @@ def build_self_review_prompt(report: str) -> str:
 # LINE送信
 # =========================
 
-def send(msg: str):
-    """
-    LINE Notify へ送信する。
-    DNSエラー・タイムアウトなど、どんな失敗が起きても
-    プロセスを落とさず、ログに理由とメッセージ全文を出して終わる。
-    """
-    if not LINE_TOKEN:
-        print("[WARN] LINE トークンが設定されていません。標準出力のみ行います。")
-        print("----- LINEメッセージ（トークン未設定） -----")
-        print(msg)
-        print("----- ここまで -----")
-        return
-
-    url = "https://notify-api.line.me/api/notify"
-    headers = {"Authorization": f"Bearer {LINE_TOKEN}"}
-    data = {"message": msg}
-
-    try:
-        print("[INFO] LINE Notify 送信開始")
-        res = requests.post(url, headers=headers, data=data, timeout=15)
-        print(f"[INFO] LINE Notify status: {res.status_code}")
-        res.raise_for_status()
-        print("[INFO] LINE 送信成功")
-    except requests.exceptions.RequestException as e:
-        # ここでDNSエラーもタイムアウトも全部キャッチ
-        print(f"[ERROR] LINE 送信に失敗しました: {e}")
-        print("----- 本来送る予定だったメッセージ（保存用） -----")
-        print(msg)
-        print("----- ここまで -----")
-    except Exception as e:
-        # 想定外の例外も絶対に落とさない
-        print(f"[ERROR] LINE送信中に予期せぬエラー: {e}")
-        print("----- 本来送る予定だったメッセージ（保存用） -----")
-        print(msg)
-        print("----- ここまで -----")
+def send(msg):
+    r = requests.post(
+        "https://api.line.me/v2/bot/message/broadcast",
+        headers={
+            "Authorization": f"Bearer {LINE_TOKEN}",
+            "Content-Type": "application/json",
+        },
+        json={"messages":[{"type":"text","text":msg}]}
+    )
+    print("送信結果:", r.status_code, r.text)
 
 
 # =========================
